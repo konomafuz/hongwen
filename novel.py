@@ -1264,12 +1264,28 @@ def run_rag_retrieve(state, chapter_num, chapter_outline, previous_context, quie
         default_root = os.path.join(os.path.expanduser("~"), "novel-rag-kb")
         env["NOVEL_RAG_KB"] = default_root
         
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", env=env)
+        res = subprocess.run(cmd, capture_output=True, env=env)
+        
+        # 兼容 Windows CMD/Powershell 下的 GBK 编码输出，防止 _readerthread 编码崩溃
+        stdout = ""
+        stderr = ""
+        if res.stdout:
+            try:
+                stdout = res.stdout.decode("utf-8")
+            except UnicodeDecodeError:
+                stdout = res.stdout.decode("gbk", errors="replace")
+                
+        if res.stderr:
+            try:
+                stderr = res.stderr.decode("utf-8")
+            except UnicodeDecodeError:
+                stderr = res.stderr.decode("gbk", errors="replace")
+                
         if res.returncode == 0:
-            return res.stdout
+            return stdout
         else:
             if not quiet:
-                print_err(f"RAG 检索器返回异常 ({res.returncode}): {res.stderr}")
+                print_err(f"RAG 检索器返回异常 ({res.returncode}): {stderr}")
             return ""
     except Exception as e:
         if not quiet:
@@ -1331,11 +1347,26 @@ def cmd_update():
             default_root = os.path.join(os.path.expanduser("~"), "novel-rag-kb")
             env["NOVEL_RAG_KB"] = default_root
             
-            res = subprocess.run([sys.executable, script], capture_output=True, text=True, encoding="utf-8", env=env)
+            res = subprocess.run([sys.executable, script], capture_output=True, env=env)
+            
+            stdout = ""
+            stderr = ""
+            if res.stdout:
+                try:
+                    stdout = res.stdout.decode("utf-8")
+                except UnicodeDecodeError:
+                    stdout = res.stdout.decode("gbk", errors="replace")
+                    
+            if res.stderr:
+                try:
+                    stderr = res.stderr.decode("utf-8")
+                except UnicodeDecodeError:
+                    stderr = res.stderr.decode("gbk", errors="replace")
+                    
             if res.returncode == 0:
                 print_ok("RAG 语感与热梗知识库联网更新完成！")
             else:
-                print_err(f"更新失败：{res.stderr}")
+                print_err(f"更新失败：{stderr}")
         except Exception as e:
             print_err(f"执行更新脚本出错: {e}")
 
