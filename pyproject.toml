@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hongwen-zhimeng"
+version = "0.2.0"
+description = "红文织梦 CLI — 番茄小说女频全自动网文创作管线"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "rich",
+    "python-docx",
+    "requests",
+]
+
+[project.scripts]
+hongwen = "novel:main"
+
+[tool.setuptools]
+py-modules = ["novel"]
