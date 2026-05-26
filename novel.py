@@ -183,6 +183,28 @@ def print_step(step_num, total, msg):
 # ═══════════════════════════════════════════════════════════════
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKSPACE_DIR = os.getcwd()
+
+# ----------------- 自动读取 .env 配置文件 -----------------
+def load_dotenv():
+    env_path = os.path.join(WORKSPACE_DIR, ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k == "DEEPSEEK_API_KEY" and v:
+                            os.environ["DEEPSEEK_API_KEY"] = v
+        except Exception:
+            pass
+
+load_dotenv()
+
 STATE_FILE = os.path.join(WORKSPACE_DIR, "novel_project.json")
 STYLE_CONFIG_FILE = os.path.join(WORKSPACE_DIR, "styles_config.json")
 KB_PATH = os.path.join(SRC_DIR, "knowledge_base", "hot_books_kb.md")
@@ -208,7 +230,7 @@ def load_book_type_config(book_type):
         "rules": {
             "short_paragraph": "非对话的十个字以内单独成段短句，整章累计不超过 15 处；严禁机械化、套路化堆砌“没有...没有...他只是...”这类车轱辘短句排比并单独成段。",
             "system_prompt_story": "你是一位精通番茄女频爆款的核心设定架构师。",
-            "system_prompt_synopsis": "你是一位精通番茄女频爆款简介 of 文案策划专家。",
+            "system_prompt_synopsis": "你是一位精通番茄女频爆款简介与文案策划专家。",
             "system_prompt_outline": "你是一位精通女频网文架构的大纲策划专家。",
             "system_prompt_draft": "你是一位番茄小说女频热门作者，文风生活化、有颗粒感。",
             "system_prompt_review": "你是一位毒舌但专业的女频网文质检编辑，专砍废话、注水和AI味。"
@@ -339,13 +361,19 @@ def build_style_prompt():
 #  DeepSeek API 客户端
 # ═══════════════════════════════════════════════════════════════
 def call_deepseek(prompt, system_prompt=""):
-    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
     if not api_key:
         print_err("未检测到 DEEPSEEK_API_KEY 环境变量！")
         console.print(f"  [{C_WARN}]请在终端设置环境变量，例如:[/{C_WARN}]")
         console.print(f"  [{C_JADE}]Windows Powershell:  $env:DEEPSEEK_API_KEY='your_key_here'[/{C_JADE}]")
         console.print(f"  [{C_JADE}]Windows CMD:         set DEEPSEEK_API_KEY=your_key_here[/{C_JADE}]")
         raise ValueError("DEEPSEEK_API_KEY is not set.")
+        
+    if not api_key.isascii() or len(api_key) > 128:
+        print_err("检测到当前载入的 DEEPSEEK_API_KEY 格式非法！")
+        console.print(f"  [{C_WARN}]密钥长度必须小于 128 位，且只能包含 ASCII 字符（通常以 sk- 开头）。[/{C_WARN}]")
+        console.print(f"  [{C_WARN}]请检查您的环境变量设置或本地 .env 文件，确保没有复制多余的汉字或空格。[/{C_WARN}]")
+        raise ValueError("Invalid DEEPSEEK_API_KEY format (contains non-ASCII characters or length is too long).")
     
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -818,6 +846,85 @@ def cmd_trend_fetch():
         print_err(f"运行抓取失败: {e}")
 
 def cmd_init(state):
+    # 检测 API Key 是否设置，若缺失或格式非法则提示输入并导入会话
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+    is_valid = api_key and api_key.isascii() and len(api_key) < 128
+    
+    if is_valid:
+        print_section_header("API 密钥检测", "🔑")
+        masked_key = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else "..."
+        print_ok(f"已检测到 DEEPSEEK_API_KEY 密钥: [bold white]{masked_key}[/bold white] (已自动载入会话)")
+        console.print()
+    else:
+        print_section_header("导入 API 密钥", "🔑")
+        if api_key:
+            console.print(f"  [{C_ERROR}]检测到当前环境变量或 .env 中的 DEEPSEEK_API_KEY 格式不正确！[/{C_ERROR}]")
+            console.print(f"  [{C_WARN}]错误原因：密钥包含非 ASCII 字符（如汉字）或长度异常（当前长度 {len(api_key)}，正常密钥通常小于 64 位且以 sk- 开头）。[/{C_WARN}]")
+        else:
+            console.print(f"  [{C_WARN}]未检测到 DEEPSEEK_API_KEY 环境变量或 .env 配置文件！[/{C_WARN}]")
+            
+        console.print(f"  [{C_SILVER}]如果您已经有密钥，可在此直接粘贴。或者，您也可以先在终端执行以下口令设置全局环境变量（直接复制即可）：[/{C_SILVER}]")
+        console.print(f"  • Windows Powershell: [bold #C77A8E]$env:DEEPSEEK_API_KEY='your_key_here'[/bold #C77A8E]")
+        console.print(f"  • Windows CMD:        [bold #C77A8E]set DEEPSEEK_API_KEY=your_key_here[/bold #C77A8E]")
+        console.print(f"  • Linux / macOS:      [bold #C77A8E]export DEEPSEEK_API_KEY='your_key_here'[/bold #C77A8E]\n")
+        
+        while True:
+            key = Prompt.ask(f"  [{C_GOLD}]🔑 请输入/粘贴您的 DeepSeek API Key（回车留空则终止初始化）[/{C_GOLD}]").strip()
+            if not key:
+                print_err("API Key 不能为空，项目初始化终止。")
+                return
+            if not key.isascii() or len(key) >= 128:
+                print_err("输入的 API Key 格式不正确！密钥不能包含汉字等非 ASCII 字符，且长度不能超过 128 位。请重新输入。")
+                continue
+            break
+            
+        os.environ["DEEPSEEK_API_KEY"] = key
+        
+        # 保存到本地 .env 文件中
+        env_path = os.path.join(WORKSPACE_DIR, ".env")
+        try:
+            lines = []
+            has_key = False
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+            
+            new_lines = []
+            for line in lines:
+                if line.strip().startswith("DEEPSEEK_API_KEY="):
+                    new_lines.append(f"DEEPSEEK_API_KEY={key}\n")
+                    has_key = True
+                else:
+                    new_lines.append(line)
+            if not has_key:
+                if new_lines and not new_lines[-1].endswith("\n"):
+                    new_lines[-1] += "\n"
+                new_lines.append(f"DEEPSEEK_API_KEY={key}\n")
+                
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+            
+            print_ok("API Key 已成功导入，并已保存至本地 .env 文件中，下次无需重新输入。")
+        except Exception as e:
+            print_ok("API Key 已成功导入当前运行会话！")
+            print_warn(f"无法将 API Key 保存至 .env 文件: {e}")
+            
+        # 确保 .env 在 .gitignore 中
+        gitignore_path = os.path.join(WORKSPACE_DIR, ".gitignore")
+        try:
+            needs_append = True
+            if os.path.exists(gitignore_path):
+                with open(gitignore_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if ".env" in content.split():
+                        needs_append = False
+            if needs_append:
+                with open(gitignore_path, "a", encoding="utf-8") as f:
+                    f.write("\n# Environment variables\n.env\n")
+        except Exception:
+            pass
+        console.print()
+
     if state.get("settings_created") and state.get("outline_created"):
         overwrite = Confirm.ask(f"  [{C_WARN}]检测到当前项目已完成初始化。重新初始化会清空章节进度，是否确认？[/{C_WARN}]")
         if not overwrite:
@@ -840,10 +947,10 @@ def cmd_init(state):
             
     # 从零开始选择题材并生成
     console.print(f"  [{C_PINK}]请选择新作品的题材/体裁类型：[/{C_PINK}]")
-    console.print(f"  1. 女频长篇 (1800-2200字，注重甜宠/情感拉扯/吃瓜打脸)")
-    console.print(f"  2. 男频长篇 (2000-3000字，注重金手指/升级流/热血打脸)")
-    console.print(f"  3. 精品短篇 (5000-10000字单章，分段叙事/高概念/高反转)")
-    console.print(f"  4. 短剧剧本 (300-500字单集，标准剧本格式/极快节奏/集尾钩子)")
+    console.print(f"  1. 女频长篇")
+    console.print(f"  2. 男频长篇")
+    console.print(f"  3. 精品短篇")
+    console.print(f"  4. 短剧剧本")
     
     type_choice = Prompt.ask(f"  [{C_GOLD}]请选择数字 (1-4)[/{C_GOLD}]", default="1", choices=["1", "2", "3", "4"])
     type_mapping = {
@@ -854,13 +961,103 @@ def cmd_init(state):
     }
     book_type = type_mapping[type_choice]
     book_cfg = load_book_type_config(book_type)
+    genre_display = book_cfg.get("genre_name", "女频长篇")
     
-    console.print(f"\n  [{C_PINK}]请输入新作品的基本信息：[/{C_PINK}]\n")
-    default_title = "绑定吃瓜系统，我靠剧透爆红了" if book_type == "female_novel" else ("我有万物升级系统" if book_type == "male_novel" else "红雨衣的秘密")
-    title = Prompt.ask(f"  [{C_GOLD}]📕 新书名/剧名[/{C_GOLD}]", default=default_title)
-    default_synopsis = "女主绑定心声剧透系统..." if book_type == "female_novel" else ("主角觉醒升级万物挂，一路扮猪吃老虎..." if book_type == "male_novel" else "关于一件诡异红色雨衣的故事...")
-    synopsis = Prompt.ask(f"  [{C_GOLD}]📝 核心选题概念/故事大纲简介[/{C_GOLD}]", default=default_synopsis)
+    # 询问选题信息
+    console.print(f"\n  [{C_PINK}]请输入新作品的基本信息：[/{C_PINK}]")
+    console.print(f"  [{C_SILVER}]提示：如果您没有创作灵感，可以输入 'r' 让我为您推荐3个爆款选题。[/{C_SILVER}]")
     
+    while True:
+        title_input = Prompt.ask(f"  [{C_GOLD}]📕 新书名/剧名 (输入 'r' 推荐选题)[/{C_GOLD}]").strip()
+        if title_input:
+            break
+        print_err("书名/剧名不能为空，请重新输入。")
+        
+    title = ""
+    synopsis = ""
+    
+    if title_input.lower() == 'r':
+        # 调用大模型获取 3 个选题建议
+        kb_references = ""
+        if book_type in ["female_novel", "short_story"]:
+            books = parse_markdown_kb()
+            if books:
+                samples = random.sample(books, min(len(books), 5))
+                kb_references = "参考爆款样例：\n" + "\n".join([f"- 《{b['title']}》: {b.get('abstract', '')[:100]}" for b in samples])
+                
+        recommend_prompt = (
+            f"你是一个爆款网络小说/剧本策划师。用户想写一本 【{genre_display}】 类型的作品，但他目前没有任何灵感，不知道写什么。\n"
+            f"请从市场爆款逻辑出发，为他量身定制 3 个极具新意、极具冲突和卖点的选题创意选择。\n\n"
+            f"{kb_references}\n"
+            f"请严格按以下 JSON 格式输出，不要输出任何其他的解释、前言、后记或 Markdown 标记：\n"
+            f"[\n"
+            f"  {{\n"
+            f"    \"title\": \"书名/剧名\",\n"
+            f"    \"synopsis\": \"核心选题概念与爽点简介\"\n"
+            f"  }},\n"
+            f"  {{\n"
+            f"    \"title\": \"书名/剧名\",\n"
+            f"    \"synopsis\": \"核心选题概念与爽点简介\"\n"
+            f"  }},\n"
+            f"  {{\n"
+            f"    \"title\": \"书名/剧名\",\n"
+            f"    \"synopsis\": \"核心选题概念与爽点简介\"\n"
+            f"  }}\n"
+            f"]"
+        )
+        
+        with console.status(f"[bold #C77A8E]  ✨ 正在为您检索爆款库并生成3个定制选题建议...", spinner="dots12", spinner_style="#FFB703"):
+            try:
+                res_raw = call_deepseek(recommend_prompt, "你是一个小说选题专家。你必须直接返回干净的JSON数组。")
+                json_clean = re.sub(r"```(?:json)?", "", res_raw).strip()
+                options = json.loads(json_clean)
+            except Exception as e:
+                print_err(f"选题推荐生成失败 ({e})，将切换回手动输入。")
+                options = []
+                
+        if options and len(options) >= 3:
+            console.print(f"\n  [bold #06D6A0]✨ 为您推荐的 3 个爆款选题：[/bold #06D6A0]")
+            for idx, opt in enumerate(options[:3]):
+                console.print(f"  [bold #FFB703]{idx+1}. 《{opt['title']}》[/bold #FFB703]")
+                console.print(f"     [white]{opt['synopsis']}[/white]\n")
+            console.print(f"  [bold #FFB703]4. 手动输入自定义书名和简介[/bold #FFB703]\n")
+            
+            choice = Prompt.ask(f"  [{C_GOLD}]请选择 (1-4)[/{C_GOLD}]", choices=["1", "2", "3", "4"], default="1")
+            if choice in ["1", "2", "3"]:
+                selected = options[int(choice) - 1]
+                title = selected["title"]
+                synopsis = selected["synopsis"]
+                console.print(f"  [{C_SUCCESS}]✔ 已采纳选题：《{title}》[/{C_SUCCESS}]")
+            else:
+                while True:
+                    title = Prompt.ask(f"  [{C_GOLD}]📕 新书名/剧名[/{C_GOLD}]").strip()
+                    if title:
+                        break
+                    print_err("书名/剧名不能为空。")
+                while True:
+                    synopsis = Prompt.ask(f"  [{C_GOLD}]📝 核心选题概念/故事大纲简介[/{C_GOLD}]").strip()
+                    if synopsis:
+                        break
+                    print_err("简介不能为空。")
+        else:
+            while True:
+                title = Prompt.ask(f"  [{C_GOLD}]📕 新书名/剧名[/{C_GOLD}]").strip()
+                if title:
+                    break
+                print_err("书名/剧名不能为空。")
+            while True:
+                synopsis = Prompt.ask(f"  [{C_GOLD}]📝 核心选题概念/故事大纲简介[/{C_GOLD}]").strip()
+                if synopsis:
+                    break
+                print_err("简介不能为空。")
+    else:
+        title = title_input
+        while True:
+            synopsis = Prompt.ask(f"  [{C_GOLD}]📝 核心选题概念/故事大纲简介[/{C_GOLD}]").strip()
+            if synopsis:
+                break
+            print_err("简介不能为空。")
+        
     state["novel_title"] = title
     state["synopsis"] = synopsis
     state["book_type"] = book_type
@@ -1595,23 +1792,24 @@ FAREWELL_QUOTES = [
 ]
 
 def print_onboarding_guide():
-    """打印新手快速上手指引面板"""
-    guide_text = (
-        f"[bold #FFB703]欢迎使用 红文织梦 CLI！[/bold #FFB703]\n"
-        f"[#F4A3B5]检测到您在此目录首次运行或尚未初始化，我们将指引您快速开始创作：[/#F4A3B5]\n\n"
-        f"  [bold #C77A8E]1. 初始化项目：[/bold #C77A8E] 输入 [bold white]init[/bold white] ➜ 选择题材、设定小说名及简介，自动生成设定。\n"
-        f"  [bold #C77A8E]2. 设定小说文风：[/bold #C77A8E] 输入 [bold white]style[/bold white] ➜ 查看预设或通过 [bold white]style learn <参考文件>[/bold white] 学习您喜爱的文风。\n"
-        f"  [bold #C77A8E]3. 开始自动写作：[/bold #C77A8E] 输入 [bold white]write <章节数>[/bold white]（如 `write 3`） ➜ AI 将自动开启写作流水线。\n"
-        f"  [bold #C77A8E]4. 导出排版文档：[/bold #C77A8E] 输入 [bold white]export[/bold white] ➜ 自动打包合并所有章节为 Word 排版好的 docx 文档。\n\n"
-        f"[#A8687A]提示：您可以随时输入 [bold white]help[/bold white] 显示所有可用命令，输入 [bold white]status[/bold white] 查看项目整体进度！[/#A8687A]"
+    """以极具氛围感且轻量极简的方式展示新手起航指引"""
+    guide_content = (
+        f"[italic #F4A3B5]“笔落惊风雨，诗成泣鬼神。”[/italic #F4A3B5]\n"
+        f"[dim #FAF3E0]在这里，每一个题材都是一个待醒之梦，只待你落笔生花。[/dim #FAF3E0]\n\n"
+        f"[bold #FFB703]💡 快速落笔三部曲：[/bold #FFB703]\n"
+        f"  • 输入 [bold #C77A8E]init[/bold #C77A8E]   ➜  构筑核心设定，开启选题灵感\n"
+        f"  • 输入 [bold #C77A8E]write[/bold #C77A8E]  ➜  大纲、初稿、自审、精修一气呵成\n"
+        f"  • 输入 [bold #C77A8E]export[/bold #C77A8E] ➜  章节自动拼装，导出排版好的 Word 文档\n\n"
+        f"[dim #A8687A]提示：随时输入 [bold white]help[/bold white] 查看指令秘籍，输入 [bold white]status[/bold white] 观览项目全貌。[/dim #A8687A]"
     )
-    console.print(Panel(
-        guide_text,
-        title="[bold #06D6A0]✨ 新手首航指引 (Onboarding Guide) ✨[/bold #06D6A0]",
+    panel = Panel(
+        guide_content,
+        title="[bold #06D6A0]🪶  红 文 织 梦  ·  启 航[/bold #06D6A0]",
         border_style="#06D6A0",
         box=ROUNDED,
-        padding=(1, 2)
-    ))
+        padding=(1, 4),
+    )
+    console.print(panel)
 
 def start_interactive_shell():
     # 清屏效果 (可选)
@@ -1653,9 +1851,6 @@ def start_interactive_shell():
 
     while True:
         try:
-            # 如果未初始化，给出提示
-            if not state.get("settings_created"):
-                console.print(f"  [{C_WARN}]💡 新手提示：请先输入 init 进行项目初始化，以生成作品设定！[/{C_WARN}]")
             cmd_input = Prompt.ask(f"\n  [bold #C77A8E]❯[/bold #C77A8E] [bold #FFB703]红文织梦[/bold #FFB703] [#C77A8E]▸[/#C77A8E]").strip()
             if not cmd_input:
                 continue

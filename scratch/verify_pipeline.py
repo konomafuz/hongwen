@@ -66,6 +66,8 @@ def mock_call_deepseek(prompt, system_prompt=""):
 
 class TestNovelPipeline(unittest.TestCase):
     def setUp(self):
+        # Set dummy API key in environment to bypass the init check
+        os.environ["DEEPSEEK_API_KEY"] = "mock_key"
         # Backup existing state & settings
         self.backups = {}
         for f in ["novel_project.json", "novel_core_settings.md"]:
