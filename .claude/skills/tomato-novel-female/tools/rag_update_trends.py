@@ -24,6 +24,22 @@ DEFAULT_QUERIES = [
     "番茄小说 女频 现言 评论区 热词",
 ]
 
+DEFAULT_QUERIES_MALE = [
+    "2026 玄幻修仙 小说 热门金手指 系统流",
+    "2026 男频网文 评论区 热梗 爽点",
+    "2026 起点 小说 热门套路 升级流",
+    "2026 B站 动漫 热梗 弹幕 吐槽",
+    "番茄小说 男频 玄幻 评论区 热词",
+]
+
+DEFAULT_QUERIES_SHORT = [
+    "2026 知乎盐选 短篇故事 热梗 反转",
+    "2026 短篇小说 热门题材 高赞 爆款",
+    "2026 小红书 短篇故事 热门 推荐",
+    "2026 微博 热门短篇 故事 讨论",
+    "番茄小说 短篇 爆款 评论区 热词",
+]
+
 STOP_PHRASES = {
     "最新热梗",
     "热梗",
@@ -318,7 +334,13 @@ def parse_queries(args: argparse.Namespace) -> list[str]:
         content = Path(args.query_file).read_text(encoding="utf-8")
         queries.extend(line.strip() for line in content.splitlines() if line.strip())
     if args.default_queries:
-        queries.extend(DEFAULT_QUERIES)
+        genre_family = args.genre_family or "female"
+        if genre_family == "male":
+            queries.extend(DEFAULT_QUERIES_MALE)
+        elif genre_family == "short":
+            queries.extend(DEFAULT_QUERIES_SHORT)
+        else:
+            queries.extend(DEFAULT_QUERIES)
     return list(dict.fromkeys(queries))
 
 
@@ -330,6 +352,12 @@ def main() -> int:
     parser.add_argument("--query", action="append", help="Search query. Can be repeated.")
     parser.add_argument("--query-file", help="UTF-8 file with one search query per line.")
     parser.add_argument("--default-queries", action="store_true", help="Use built-in hot-meme search queries.")
+    parser.add_argument(
+        "--genre-family",
+        choices=["female", "male", "short"],
+        default="female",
+        help="Genre family for default queries: female (女频), male (男频), short (短篇). Default: female.",
+    )
     parser.add_argument("--from-inbox", action="store_true", help="Ingest text/md/jsonl files from kb_root/inbox.")
     parser.add_argument("--assistant-report-file", help="Markdown/text report produced by manual assistant web research.")
     parser.add_argument("--max-results", type=int, default=5, help="Search results per query.")

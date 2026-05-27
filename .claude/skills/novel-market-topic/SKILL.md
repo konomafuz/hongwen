@@ -1,11 +1,11 @@
 ---
 name: novel-market-topic
-description: 番茄女频小说的市场调研与选题生成 Skill。Use when the user asks for 热点调研、趋势分析、热门题材、热门标签、热词、人设趋势、排行榜、爆款分析、选题仿写、模仿某本书生成新选题 or similar market/topic work for Chinese female-oriented web novels.
+description: 网文市场调研与选题生成 Skill。支持男女频、短篇。Use when the user asks for 热点调研、趋势分析、热门题材、热门标签、热词、人设趋势、排行榜、爆款分析、选题仿写、模仿某本书生成新选题 or similar market/topic work.
 ---
 
-# 番茄女频市场与选题
+# 网文市场与选题
 
-负责小说项目最前端的市场输入：热点调研、爆款数据分析、热门标签/热词/人设趋势提取，以及基于已有书名简介做选题仿写。
+负责小说项目最前端的市场输入：热点调研、爆款数据分析、热门标签/热词/人设趋势提取，以及基于已有书名简介做选题仿写。支持女频长篇、男频长篇、精品短篇、短剧剧本四种品类。
 
 ## 边界
 
@@ -19,10 +19,11 @@ description: 番茄女频小说的市场调研与选题生成 Skill。Use when t
    - 热点、趋势、热门题材、排行榜、标签、人设、热词：读取 `references/step00-trend-analysis.md`。
    - 仿写、模仿这本书、类似选题、新书名简介：读取 `references/step01-imitate.md`。
 2. 如果需要客观统计或爆款库数据，优先使用 `tools/` 中的脚本，不要凭感觉估算：
-   - `tools/fanqie_scraper.py`：抓取番茄女频排行/分类数据。
+   - `tools/fanqie_scraper.py`：抓取番茄排行/分类数据（支持 --gender female/male/short/all）。
    - `tools/fanqie_report.py`：生成标签、题材、关键词、人设、共现统计报告。
-3. 输出时把“数据结论”和“创作建议”分开，避免把市场现象直接写成小说设定。
-4. 给出可进入下一步的产物：
+3. 输出时把”数据结论”和”创作建议”分开，避免把市场现象直接写成小说设定。
+4. 根据当前项目的 book_type（female_novel/male_novel/short_story/short_drama）自动使用对应的知识库和统计数据。
+5. 给出可进入下一步的产物：
    - 热点调研：趋势报告、标签/人设/题材建议、3-5个可写方向。
    - 选题仿写：3组新书名、简介、核心卖点、差异化改造点。
 

@@ -210,6 +210,38 @@ STYLE_CONFIG_FILE = os.path.join(WORKSPACE_DIR, "styles_config.json")
 KB_PATH = os.path.join(SRC_DIR, "knowledge_base", "hot_books_kb.md")
 STATS_PATH = os.path.join(SRC_DIR, "scratch", "statistics_output.txt")
 SETTINGS_FILE = os.path.join(WORKSPACE_DIR, "novel_core_settings.md")
+
+# 品类 → KB 文件 / stats 输出 / gender 映射
+BOOK_TYPE_KB_MAP = {
+    "female_novel": ("hot_books_kb.md", "statistics_output.txt", "female"),
+    "male_novel":   ("hot_books_male_kb.md", "statistics_output_male.txt", "male"),
+    "short_story":  ("hot_books_short_kb.md", "statistics_output_short.txt", "short"),
+    "short_drama":  ("hot_books_short_kb.md", "statistics_output_short.txt", "short"),
+}
+
+def get_kb_path(book_type: str) -> str:
+    """根据 book_type 返回对应的知识库文件路径。"""
+    kb_file = BOOK_TYPE_KB_MAP.get(book_type, ("hot_books_kb.md", None, None))[0]
+    return os.path.join(SRC_DIR, "knowledge_base", kb_file)
+
+def get_stats_path(book_type: str) -> str:
+    """根据 book_type 返回对应的统计数据输出路径。"""
+    stats_file = BOOK_TYPE_KB_MAP.get(book_type, (None, "statistics_output.txt", None))[1]
+    return os.path.join(SRC_DIR, "scratch", stats_file)
+
+def get_gender_from_book_type(book_type: str) -> str:
+    """根据 book_type 返回爬虫 --gender 参数值。"""
+    return BOOK_TYPE_KB_MAP.get(book_type, (None, None, "female"))[2]
+
+def get_kb_title(book_type: str) -> str:
+    """根据 book_type 返回知识库表格标题。"""
+    titles = {
+        "female_novel": "番茄女频爆款小说知识库",
+        "male_novel": "番茄男频爆款小说知识库",
+        "short_story": "番茄短篇爆款知识库",
+        "short_drama": "番茄短篇爆款知识库",
+    }
+    return titles.get(book_type, "番茄女频爆款小说知识库")
 SYNOPSIS_FILE = os.path.join(WORKSPACE_DIR, "novel_tags_synopsis.md")
 REFERENCES_DIR = os.path.join(SRC_DIR, ".claude", "skills", "tomato-novel-female", "references")
 
@@ -483,12 +515,14 @@ def try_recover_state():
 # ═══════════════════════════════════════════════════════════════
 #  爆款库 Markdown 解析
 # ═══════════════════════════════════════════════════════════════
-def parse_markdown_kb():
-    if not os.path.exists(KB_PATH):
+def parse_markdown_kb(kb_path=None):
+    if kb_path is None:
+        kb_path = KB_PATH
+    if not os.path.exists(kb_path):
         return []
-    
+
     try:
-        with open(KB_PATH, 'r', encoding='utf-8') as f:
+        with open(kb_path, 'r', encoding='utf-8') as f:
             content = f.read()
     except Exception as e:
         print_err(f"读取知识库失败: {e}")
@@ -710,16 +744,19 @@ def cmd_status(state):
             Text(f"尚无内容，输入 write 开始创作你的故事吧 ✨", style=f"italic {C_PINK}")
         ))
 
-def cmd_trend_kb():
-    books = parse_markdown_kb()
+def cmd_trend_kb(state):
+    book_type = state.get("book_type", "female_novel")
+    kb_path = get_kb_path(book_type)
+    books = parse_markdown_kb(kb_path)
     if not books:
         print_err("未在知识库中找到爆款书籍数据。")
         return
 
-    print_section_header("爆款知识库", "📚")
-        
+    kb_title = get_kb_title(book_type)
+    print_section_header(kb_title, "📚")
+
     table = Table(
-        title="[bold #C77A8E]番茄女频爆款小说知识库[/bold #C77A8E]",
+        title=f"[bold #C77A8E]{kb_title}[/bold #C77A8E]",
         box=ROUNDED,
         border_style="#A8687A",
         header_style="bold #FFB703 on #1A1A2E",
@@ -746,26 +783,31 @@ def cmd_trend_kb():
         )
     console.print(Align.center(table))
 
-def cmd_trend_stats():
-    if not os.path.exists(STATS_PATH):
+def cmd_trend_stats(state):
+    book_type = state.get("book_type", "female_novel")
+    stats_path = get_stats_path(book_type)
+
+    if not os.path.exists(stats_path):
         print_warn("未找到统计缓存，正在运行分析脚本...")
         script_path = os.path.join(SRC_DIR, "scratch", "analyze_kb.py")
         if os.path.exists(script_path):
-            subprocess.run([sys.executable, script_path], stdout=subprocess.DEVNULL)
+            subprocess.run([sys.executable, script_path, "--book-type", book_type], stdout=subprocess.DEVNULL)
         else:
             print_err("未找到分析脚本 analyze_kb.py，无法分析。")
             return
-            
+
     try:
-        with open(STATS_PATH, "r", encoding="utf-8") as f:
+        with open(stats_path, "r", encoding="utf-8") as f:
             lines = f.read().split("\n")
     except Exception as e:
         print_err(f"读取统计数据失败: {e}")
         return
 
+    kb_title = get_kb_title(book_type)
+    display_label = kb_title.replace("番茄", "").replace("知识库", "").strip()
     print_section_header("大数据统计看板", "📊")
     console.print(Panel(
-        "[bold #FFB703]知识库大数据统计看板[/bold #FFB703]\n[#F4A3B5]基于番茄女频高分榜单深度分析[/#F4A3B5]",
+        f"[bold #FFB703]知识库大数据统计看板[/bold #FFB703]\n[#F4A3B5]基于{display_label}高分榜单深度分析[/#F4A3B5]",
         border_style="#C77A8E",
         box=DOUBLE,
         padding=(0, 2),
@@ -825,23 +867,35 @@ def cmd_trend_stats():
     if table:
         console.print(table)
 
-def cmd_trend_fetch():
+def cmd_trend_fetch(state):
     print_section_header("抓取爆款数据", "🌐")
+    book_type = state.get("book_type", "female_novel")
+    gender = get_gender_from_book_type(book_type)
+
     scraper = os.path.join(TOOLS_DIR, "fanqie_scraper.py")
     report = os.path.join(TOOLS_DIR, "fanqie_report.py")
-    
+
     if not os.path.exists(scraper):
         print_err("未找到爬虫脚本，无法抓取。")
         return
-        
+
     try:
+        # 使用 scratch 目录暂存爬取结果
+        scratch_dir = os.path.join(SRC_DIR, "scratch")
+        os.makedirs(scratch_dir, exist_ok=True)
+        json_cache = os.path.join(scratch_dir, f"scrape_cache_{gender}.json")
+
         with console.status(f"[bold #C77A8E]🌐 抓取每日高分排行榜数据中...", spinner="dots12", spinner_style="#FFB703"):
-            subprocess.run([sys.executable, scraper], stdout=subprocess.DEVNULL)
-            
-        with console.status(f"[bold #C77A8E]📊 分析题材趋势并生成报告...", spinner="dots12", spinner_style="#FFB703"):
-            subprocess.run([sys.executable, report], stdout=subprocess.DEVNULL)
-            
-        print_ok("抓取与分析成功！趋势报告已保存至 references/step00-trend-analysis.md")
+            with open(json_cache, "w", encoding="utf-8") as out:
+                subprocess.run([sys.executable, scraper, "--gender", gender], stdout=out)
+
+        if os.path.exists(json_cache) and os.path.getsize(json_cache) > 100:
+            with console.status(f"[bold #C77A8E]📊 分析题材趋势并生成报告...", spinner="dots12", spinner_style="#FFB703"):
+                subprocess.run([sys.executable, report, json_cache], stdout=subprocess.DEVNULL)
+            gender_label = {"female": "女频", "male": "男频", "short": "短篇"}.get(gender, gender)
+            print_ok(f"抓取与分析成功（{gender_label}）！趋势报告已保存至 references/step00-trend-analysis.md")
+        else:
+            print_err("爬取结果为空，无法生成报告。")
     except Exception as e:
         print_err(f"运行抓取失败: {e}")
 
@@ -979,8 +1033,9 @@ def cmd_init(state):
     if title_input.lower() == 'r':
         # 调用大模型获取 3 个选题建议
         kb_references = ""
-        if book_type in ["female_novel", "short_story"]:
-            books = parse_markdown_kb()
+        kb_path = get_kb_path(book_type)
+        if os.path.exists(kb_path):
+            books = parse_markdown_kb(kb_path)
             if books:
                 samples = random.sample(books, min(len(books), 5))
                 kb_references = "参考爆款样例：\n" + "\n".join([f"- 《{b['title']}》: {b.get('abstract', '')[:100]}" for b in samples])
@@ -1333,21 +1388,28 @@ def cmd_rag(state):
         except Exception as e:
             print_err(f"RAG 检索失败: {e}")
 
-def cmd_update():
+def cmd_update(state=None):
     print_section_header("更新 RAG 知识库", "🌐")
     script = os.path.join(TOOLS_DIR, "rag_update_trends.py")
     if not os.path.exists(script):
         print_err("找不到知识库更新脚本 rag_update_trends.py。")
         return
-        
+
+    # 从 state 读取 book_type，映射到 --genre-family
+    genre_family = "female"
+    if state:
+        book_type = state.get("book_type", "female_novel")
+        family_map = {"female_novel": "female", "male_novel": "male", "short_story": "short", "short_drama": "short"}
+        genre_family = family_map.get(book_type, "female")
+
     with console.status(f"[bold #C77A8E]  📚 正在联网同步并重新计算权重，请稍候...", spinner="dots12", spinner_style="#FFB703"):
         try:
             # 设置环境变量以配合 ~/novel-rag-kb 默认位置，或者使用工作区
             env = os.environ.copy()
             default_root = os.path.join(os.path.expanduser("~"), "novel-rag-kb")
             env["NOVEL_RAG_KB"] = default_root
-            
-            res = subprocess.run([sys.executable, script], capture_output=True, env=env)
+
+            res = subprocess.run([sys.executable, script, "--genre-family", genre_family], capture_output=True, env=env)
             
             stdout = ""
             stderr = ""
@@ -1917,11 +1979,11 @@ def start_interactive_shell():
                     continue
                 sub = args[0].lower()
                 if sub == "fetch":
-                    cmd_trend_fetch()
+                    cmd_trend_fetch(state)
                 elif sub == "kb":
-                    cmd_trend_kb()
+                    cmd_trend_kb(state)
                 elif sub == "stats":
-                    cmd_trend_stats()
+                    cmd_trend_stats(state)
                 else:
                     print_err(f"未知 trend 子命令: {sub}")
             elif cmd == "write":
@@ -1950,7 +2012,7 @@ def start_interactive_shell():
             elif cmd == "rag":
                 cmd_rag(state)
             elif cmd == "update":
-                cmd_update()
+                cmd_update(state)
             else:
                 print_err(f"未知命令: {cmd}。输入 help 显示帮助列表。")
         except KeyboardInterrupt:
@@ -1993,11 +2055,11 @@ def main():
         elif cmd == "trend" and len(sys.argv) > 2:
             sub = sys.argv[2].lower()
             if sub == "fetch":
-                cmd_trend_fetch()
+                cmd_trend_fetch(state)
             elif sub == "kb":
-                cmd_trend_kb()
+                cmd_trend_kb(state)
             elif sub == "stats":
-                cmd_trend_stats()
+                cmd_trend_stats(state)
         elif cmd == "style":
             cmd_style(state, sys.argv[2:])
         elif cmd in STYLE_SHORTCUTS:
@@ -2005,7 +2067,7 @@ def main():
         elif cmd == "rag":
             cmd_rag(state)
         elif cmd == "update":
-            cmd_update()
+            cmd_update(state)
         elif cmd == "help":
             cmd_help()
         else:

@@ -1,6 +1,6 @@
 ---
 name: tomato-novel-female
-description: 番茄小说女频网文多 Skill 主控路由。Use when the user asks for 写网文、写小说、番茄小说、女频、言情小说、小说流程、完整创作链路、热点分析、选题、设定、大纲、正文、审查、RAG语感小抄、合并Word or any end-to-end Chinese female-oriented web novel workflow. This skill routes to specialized novel-* skills instead of doing every step itself.
+description: 网文多 Skill 主控路由（支持女频/男频/短篇/短剧）。Use when the user asks for 写网文、写小说、小说流程、完整创作链路、热点分析、选题、设定、大纲、正文、审查、RAG语感小抄、合并Word or any end-to-end Chinese web novel workflow. This skill routes to specialized novel-* skills instead of doing every step itself. Covers female_novel, male_novel, short_story, and short_drama based on book_type.
 ---
 
 # 番茄女频网文主控路由

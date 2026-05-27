@@ -1,0 +1,88 @@
+:root {
+  /* 品牌核心色彩 - 国风调色盘 */
+  --hw-primary: #C77A8E;     /* 绛红 - 主强调色 */
+  --hw-primary-hover: #D48B9E;
+  --hw-primary-active: #B2687A;
+  
+  --hw-secondary: #EAB364;   /* 琥珀金 - 次强调色/高光 */
+  --hw-bg-light: #FAF3E0;    /* 素绢 - 页面主背景 */
+  --hw-bg-dark: #264653;     /* 墨青 - 文字色/深色背景 */
+  --hw-bg-card: rgba(255, 255, 255, 0.6); /* 卡片背景 - 玻璃拟态 */
+
+  --hw-success: #2A9D8F;     /* 翡翠绿 */
+  --hw-warning: #F4A261;     /* 秋叶黄 */
+  --hw-danger: #E76F51;      /* 丹砂红 */
+
+  /* 渐变色 */
+  --hw-gradient-primary: linear-gradient(135deg, #C77A8E 0%, #EAB364 100%);
+  --hw-gradient-text: linear-gradient(to right, #C77A8E, #EAB364);
+  
+  /* 透明度与边框变量（用于动态主题色切换） */
+  --hw-nav-bg: rgba(250, 243, 224, 0.7);
+  --hw-stats-bg: rgba(250, 243, 224, 0.4);
+  --hw-pricing-bg: rgba(250, 243, 224, 0.3);
+  
+  --hw-border-light: rgba(199, 122, 142, 0.15);
+  --hw-border-subtle: rgba(199, 122, 142, 0.1);
+  
+  --hw-badge-bg: rgba(199, 122, 142, 0.08);
+  --hw-badge-border: rgba(199, 122, 142, 0.2);
+  --hw-badge-border-subtle: rgba(199, 122, 142, 0.15);
+  
+  --hw-community-blossom: rgba(199, 122, 142, 0.03);
+  --hw-community-badge-bg: rgba(199, 122, 142, 0.1);
+  --hw-community-badge-border: rgba(199, 122, 142, 0.3);
+  --hw-community-badge-shadow: rgba(199, 122, 142, 0.2);
+  --hw-community-badge-shadow-active: rgba(234, 179, 100, 0.4);
+  
+  /* 排版尺寸 */
+  --nav-height: 72px;
+  --container-width: 1200px;
+
+  /* 阴影与模糊 (高级感) */
+  --hw-shadow-sm: 0 4px 12px rgba(199, 122, 142, 0.08);
+  --hw-shadow-md: 0 8px 24px rgba(38, 70, 83, 0.06);
+  --hw-shadow-lg: 0 16px 48px rgba(199, 122, 142, 0.12);
+  --hw-shadow-glow: 0 0 20px rgba(234, 179, 100, 0.3);
+  --hw-blur: blur(12px);
+  --hw-blur-heavy: blur(24px);
+  
+  /* 字体家族 */
+  --hw-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --hw-font-serif: 'Noto Serif SC', "Songti SC", "SimSun", serif; /* 增加国风衬线体 */
+  --hw-font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+}
+
+/* ── 青绿黛山 - 黛绿/碧色主题 ── */
+[data-theme="cyan"] {
+  --hw-primary: #2D7F8D;     /* 青碧/黛绿 - 强调色 */
+  --hw-primary-hover: #3C93A2;
+  --hw-primary-active: #21616C;
+  
+  --hw-secondary: #FFB703;   /* 琥珀金 - 明亮的撞色 */
+  --hw-bg-light: #EBF2F3;    /* 雾蓝/凝脂白 - 背景色 */
+  --hw-bg-dark: #1E353F;     /* 深黛/墨绿 - 深色背景/文字 */
+  
+  --hw-gradient-primary: linear-gradient(135deg, #2D7F8D 0%, #FFB703 100%);
+  --hw-gradient-text: linear-gradient(to right, #2D7F8D, #FFB703);
+  
+  --hw-nav-bg: rgba(235, 242, 243, 0.7);
+  --hw-stats-bg: rgba(235, 242, 243, 0.4);
+  --hw-pricing-bg: rgba(235, 242, 243, 0.3);
+  
+  --hw-border-light: rgba(45, 127, 141, 0.15);
+  --hw-border-subtle: rgba(45, 127, 141, 0.1);
+  
+  --hw-badge-bg: rgba(45, 127, 141, 0.08);
+  --hw-badge-border: rgba(45, 127, 141, 0.2);
+  --hw-badge-border-subtle: rgba(45, 127, 141, 0.15);
+  
+  --hw-community-blossom: rgba(45, 127, 141, 0.03);
+  --hw-community-badge-bg: rgba(45, 127, 141, 0.1);
+  --hw-community-badge-border: rgba(45, 127, 141, 0.3);
+  --hw-community-badge-shadow: rgba(45, 127, 141, 0.2);
+  --hw-community-badge-shadow-active: rgba(255, 183, 3, 0.4);
+  
+  --hw-shadow-sm: 0 4px 12px rgba(45, 127, 141, 0.08);
+  --hw-shadow-lg: 0 16px 48px rgba(45, 127, 141, 0.12);
+}

@@ -12,7 +12,10 @@
       "Bash(python:*)",
       "Bash(uvicorn app.main:app:*)",
       "Bash(npm run:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(cp:*)"
     ]
   }
 }

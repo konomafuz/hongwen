@@ -1,14 +1,56 @@
 import re
 import os
 import json
+import argparse
 from collections import Counter, defaultdict
 from datetime import datetime
 
 # Define file paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-KB_PATH = os.path.join(REPO_ROOT, "knowledge_base", "hot_books_kb.md")
-OUTPUT_PATH = os.path.join(REPO_ROOT, "scratch", "statistics_output.txt")
+
+# 品类 → KB 文件 / stats 输出映射
+BOOK_TYPE_MAP = {
+    "female_novel": ("hot_books_kb.md", "statistics_output.txt"),
+    "male_novel":   ("hot_books_male_kb.md", "statistics_output_male.txt"),
+    "short_story":  ("hot_books_short_kb.md", "statistics_output_short.txt"),
+    "short_drama":  ("hot_books_short_kb.md", "statistics_output_short.txt"),
+}
+
+# 女频分类映射
+FEMALE_CATEGORY_MAP = {
+    '都市言情': '豪门总裁/都市现代',
+    '现代言情': '豪门总裁/都市现代',
+    '古代言情': '古代言情',
+    '年代': '年代文/种田日常',
+    '种田': '年代文/种田日常',
+    '随军': '年代文/种田日常',
+    '系统': '穿书/系统/女配觉醒',
+    '穿书': '穿书/系统/女配觉醒',
+    '脑洞': '脑洞/无限流/发疯文学/大女主',
+    '幻想言情': '脑洞/无限流/发疯文学/大女主',
+    '悬疑': '脑洞/无限流/发疯文学/大女主',
+}
+
+# 男频分类映射
+MALE_CATEGORY_MAP = {
+    '玄幻奇幻': '玄幻奇幻',
+    '玄幻': '玄幻奇幻',
+    '仙侠武侠': '仙侠武侠',
+    '仙侠': '仙侠武侠',
+    '武侠': '仙侠武侠',
+    '都市职场': '都市职场',
+    '都市': '都市职场',
+    '历史军事': '历史军事',
+    '历史': '历史军事',
+    '悬疑推理': '悬疑推理',
+    '悬疑': '悬疑推理',
+    '科幻末世': '科幻末世',
+    '科幻': '科幻末世',
+    '游戏电竞': '游戏电竞',
+    '游戏': '游戏电竞',
+}
+
 NEW_BOOKS = [
     {
         "title": "桃源大地主",
@@ -131,45 +173,59 @@ def parse_markdown_kb(content):
     return books
 
 def main():
-    if os.path.exists(KB_PATH):
-        with open(KB_PATH, 'r', encoding='utf-8') as f:
+    parser = argparse.ArgumentParser(description="Analyze hot books KB and generate statistics.")
+    parser.add_argument("--book-type", choices=["female_novel", "male_novel", "short_story", "short_drama"],
+                        default="female_novel", help="Book type to analyze (default: female_novel)")
+    args = parser.parse_args()
+
+    book_type = args.book_type
+    kb_info = BOOK_TYPE_MAP.get(book_type, BOOK_TYPE_MAP["female_novel"])
+    kb_path = os.path.join(REPO_ROOT, "knowledge_base", kb_info[0])
+    output_path = os.path.join(REPO_ROOT, "scratch", kb_info[1])
+
+    # Select the correct category mapping
+    if book_type in ("male_novel",):
+        cat_map = MALE_CATEGORY_MAP
+        kb_title = "男频爆款知识库"
+        kb_desc = "本库收集番茄小说男频高分、高流量的爆款书籍，包含书名、简介、人设、核心卖点等元数据，为后续书名及简介仿写提供底层参考。"
+    elif book_type in ("short_story", "short_drama"):
+        cat_map = {}
+        kb_title = "短篇爆款知识库"
+        kb_desc = "本库收集番茄小说/知乎盐选短篇高分、高流量的爆款作品，包含书名、简介、核心卖点等元数据，为短篇创作提供底层参考。"
+    else:
+        cat_map = FEMALE_CATEGORY_MAP
+        kb_title = "爆款书籍知识库"
+        kb_desc = "本库收集番茄小说女频高分、高流量的爆款书籍，包含书名、简介、人设、核心卖点等元数据，为后续书名及简介仿写提供底层参考。"
+
+    if os.path.exists(kb_path):
+        with open(kb_path, 'r', encoding='utf-8') as f:
             content = f.read()
     else:
-        content = "# 爆款书籍知识库\n\n"
-    
+        content = f"# {kb_title}\n\n"
+
     existing_books = parse_markdown_kb(content)
     existing_ids = {b['book_id'] for b in existing_books if 'book_id' in b}
-    
+
     updated_books = list(existing_books)
     newly_added = []
     for nb in NEW_BOOKS:
         if nb['book_id'] not in existing_ids:
             updated_books.append(nb)
             newly_added.append(nb)
-            
+
     if newly_added:
         # Group books and rewrite KB cleanly
         categories_dict = defaultdict(list)
         for b in updated_books:
             cat = b.get('category', '其他')
-            main_cat = '其他'
-            if cat in ['都市言情', '现代言情']:
-                main_cat = '豪门总裁/都市现代'
-            elif cat in ['古代言情']:
-                main_cat = '古代言情'
-            elif cat in ['年代文/种田日常', '年代', '种田', '随军']:
-                main_cat = '年代文/种田日常'
-            elif cat in ['穿书/系统/女配觉醒', '系统', '穿书']:
-                main_cat = '穿书/系统/女配觉醒'
-            elif cat in ['脑洞/无限流/发疯文学/大女主', '脑洞', '幻想言情', '悬疑']:
-                main_cat = '脑洞/无限流/发疯文学/大女主'
-            
+            main_cat = cat_map.get(cat, '其他') if cat_map else cat
+
             categories_dict[main_cat].append(b)
-            
-        with open(KB_PATH, 'w', encoding='utf-8') as f:
-            f.write("# 爆款书籍知识库\n\n")
-            f.write("本库收集番茄小说女频高分、高流量的爆款书籍，包含书名、简介、人设、核心卖点等元数据，为后续书名及简介仿写提供底层参考。\n\n")
-            
+
+        with open(kb_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {kb_title}\n\n")
+            f.write(f"{kb_desc}\n\n")
+
             for cat_name, books_list in categories_dict.items():
                 f.write(f"## {cat_name}\n\n")
                 for b in books_list:
@@ -188,13 +244,13 @@ def main():
                         f.write(f"  > {al}\n")
                     f.write("\n---\n\n")
 
-    # Run statistics on all books and write to OUTPUT_PATH
+    # Run statistics on all books and write to output_path
     all_books = updated_books
     total_count = len(all_books)
-    
+
     out = []
     out.append(f"Total books analyzed: {total_count}")
-    
+
     # 2.1 Category/Genre Distribution
     categories = [b.get('category', '其他') for b in all_books]
     cat_counts = Counter(categories)
@@ -274,9 +330,9 @@ def main():
     for i, (w, c) in enumerate(meaningful_keywords[:30], 1):
         out.append(f"| {i} | {w} | {c} |")
 
-    with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(out))
-    print(f"Stats written to {OUTPUT_PATH}")
+    print(f"Stats written to {output_path}")
 
 if __name__ == '__main__':
     main()
